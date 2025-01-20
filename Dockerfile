@@ -9,4 +9,4 @@ COPY src/ .
 
 EXPOSE 8501
 
-CMD ["streamlit", "run", "streamlit_app.py"]
+CMD ["streamlit", "run", "streamlit_app.py", "--server.address", "0.0.0.0"]
