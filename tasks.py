@@ -1,30 +1,40 @@
+from contextlib import contextmanager
 from pathlib import Path
 
-from invoke import Context, task
+from invoke import task, Context
 
 
 class Paths:
-    repo_root = Path(__file__).parent
-    src_dir = repo_root / 'src'
-    example_tables = repo_root / "example_tables"
+    here = Path(__file__).parent
+    repo_root = here
+    src = repo_root / 'src'
 
-
-def from_repo_root(c: Context):
-    return c.cd(Paths.repo_root)
+    @staticmethod
+    @contextmanager
+    def cd(c: Context, p: Path):
+        with c.cd(str(p)):
+            yield
 
 
 @task
-def compile_requirements(c: Context, install=True, upgrade=False):
-    with from_repo_root(c):
-        upgrade_flag = "--upgrade" if upgrade else ""
-        c.run(f"pip-compile {upgrade_flag} -v --strip-extras --extra dev --extra build pyproject.toml", pty=True)
-        c.run("mv requirements.txt requirements.dev.txt", pty=True)
-        c.run('echo "-e ." >> requirements.dev.txt')
+def compile_requirements(c, install=True):
+    with Paths.cd(c, Paths.repo_root):
+        c.run("pip-compile -v -o requirements.txt --upgrade")
         if install:
-            c.run("pip-sync requirements.dev.txt", pty=True)
+            c.run("pip install -r requirements.txt")
+            c.run("pip install -r requirements.dev.txt --upgrade")
 
 
 @task
-def run_streamlit_app(c: Context):
-    with c.cd(Paths.src_dir):
-        c.run("streamlit run streamlit_app.py --server.headless True --server.address 0.0.0.0", pty=True)
+def run_streamlit(c):
+    with Paths.cd(c, Paths.src):
+        c.run(
+            "python -m streamlit run streamlit_app.py",
+            pty=True,
+        )
+
+
+@task
+def lint(c):
+    with Paths.cd(c, Paths.repo_root):
+        c.run("ruff check . --fix", pty=True)
